@@ -11,7 +11,7 @@ tests :: TestTree
 tests = testGroup "Tests" [unitTests]
 
 unitTests :: TestTree
-unitTests = testGroup "Unit tests"
+unitTests = testGroup "D01P1 Unit tests"
     [
         testCase "gives correct answer to the original problem" $ do
             2 @=? fuelrequirements 12

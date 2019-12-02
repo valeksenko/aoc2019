@@ -2,7 +2,7 @@ module D02P1 (
     exec1202
 ) where
 
-import D02
+import Intcode
 
 exec1202 :: [Register] -> Int
 exec1202 registers = head . exec $ (take 1 registers) ++ [12,2] ++ (drop 3 registers)

@@ -1,4 +1,4 @@
-module D02 (
+module Intcode (
     exec
   , Register
 ) where

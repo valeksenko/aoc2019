@@ -1,17 +1,17 @@
-module D02Spec (
+module IntcodeSpec (
     tests
 ) where
 
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import D02
+import Intcode
 
 tests :: TestTree
 tests = testGroup "Tests" [unitTests]
 
 unitTests :: TestTree
-unitTests = testGroup "Unit tests"
+unitTests = testGroup "Intcode Unit tests"
     [
         testCase "gives correct answer to the original problem" $ do
             [3500,9,10,70,2,3,11,0,99,30,40,50] @=? exec [1,9,10,3,2,3,11,0,99,30,40,50]

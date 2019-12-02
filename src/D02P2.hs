@@ -3,7 +3,7 @@ module D02P2 (
 ) where
 
 import Data.List
-import D02
+import Intcode
 
 target = 19690720
 
