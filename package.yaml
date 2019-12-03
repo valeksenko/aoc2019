@@ -27,6 +27,7 @@ dependencies:
 - sbv
 - search-algorithms
 - random
+- data-ordlist
 
 library:
   source-dirs: src

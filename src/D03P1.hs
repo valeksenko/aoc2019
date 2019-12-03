@@ -4,6 +4,7 @@ module D03P1 (
 ) where
 
 import Data.List
+import Data.List.Ordered
 
 type Coordinate = (Int, Int)
 
@@ -12,21 +13,22 @@ data Path
     | L Int
     | U Int
     | D Int
+    deriving(Show, Eq)
 
 port = (0, 0)
 
 toCoordinates :: [Path] -> [Coordinate]
-toCoordinates = tail . foldl' toC [port] 
+toCoordinates = sort . init . foldl' toC [port] 
     where
-        toC coordinates path = coordinates ++ (pathC path $ last coordinates)
+        toC coordinates@(c:cs) path = (pathC path c) ++ coordinates
         pathC path (x, y) = case path of
-            R l -> [(x+i, y) | i <- [1..l]]
-            L l -> [(x-i, y) | i <- [1..l]]
-            U l -> [(x, y-i) | i <- [1..l]]
-            D l -> [(x, y+i) | i <- [1..l]]
+            R l -> [(x+i, y) | i <- reverse [1..l]]
+            L l -> [(x-i, y) | i <- reverse [1..l]]
+            U l -> [(x, y-i) | i <- reverse [1..l]]
+            D l -> [(x, y+i) | i <- reverse [1..l]]
 
 distancetointersection :: [Path] -> [Path] -> Int
-distancetointersection p1 p2 = shortest . map distance $ intersect (toCoordinates p1) (toCoordinates p2)
+distancetointersection p1 p2 = shortest . map distance $ isect (toCoordinates p1) (toCoordinates p2)
     where
         distance (x, y) = abs x + abs y
         shortest = head . sort
