@@ -10,7 +10,7 @@ import Data.Maybe
 stepstointersection :: [Path] -> [Path] -> Int
 stepstointersection p1 p2 = stepsToI (toCoordinates p1) (toCoordinates p2)
     where
-        stepsToI c1 c2 = head . sort . map (steps c1 c2) $ intersection c1 c2
+        stepsToI c1 c2 = minimum . map (steps c1 c2) $ intersection c1 c2
         steps c1 c2 c = fromJust (elemIndex c c1) + fromJust (elemIndex c c2) + 2
 {-
 https://adventofcode.com/2019/day/3#part2

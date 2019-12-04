@@ -28,6 +28,7 @@ dependencies:
 - search-algorithms
 - random
 - data-ordlist
+- digits
 
 library:
   source-dirs: src

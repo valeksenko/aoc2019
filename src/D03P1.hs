@@ -7,11 +7,9 @@ import D03
 import Data.List
 
 distancetointersection :: [Path] -> [Path] -> Int
-distancetointersection p1 p2 = shortest . map distance $ intersection (toCoordinates p1) (toCoordinates p2)
+distancetointersection p1 p2 = minimum . map distance $ intersection (toCoordinates p1) (toCoordinates p2)
     where
         distance (x, y) = abs x + abs y
-        shortest = head . sort
-
 {-
 https://adventofcode.com/2019/day/3
 
