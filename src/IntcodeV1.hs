@@ -1,4 +1,4 @@
-module Intcode (
+module IntcodeV1 (
     exec
   , Register
 ) where
