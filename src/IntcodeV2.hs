@@ -19,6 +19,10 @@ data InstructionSet
     | MUL Address Address Address
     | GET Address
     | PUT Address
+    | JIT Address Address
+    | JIF Address Address
+    | SLT Address Address Address
+    | SEQ Address Address Address
     | HLT
     deriving(Show, Eq)
 
@@ -36,8 +40,9 @@ exec input = sOutput . runProgram . State 0 input [] . S.fromList
 runProgram :: State -> State
 runProgram state =  run state $ toCode (sRegisters state) (sPosition state)
     where
-        run state (op, (Just nextPos)) = runProgram $ (execOp state op) { sPosition = nextPos }
+        run state (op, (Just skip)) = runProgram . incP skip $ execOp state op
         run state (op, Nothing) = execOp state op
+        incP skip state' = state' { sPosition = (sPosition state') + skip }
 
 registerA :: Address -> State -> Int
 registerA addr state = case addr of
@@ -46,7 +51,6 @@ registerA addr state = case addr of
 
 registerABC :: Address -> Address -> Address -> State -> (Int, Int, Int)
 registerABC a b (PositionMode c) state = (registerA a state, registerA b state, c)
-registerABC a b (ImmediateMode c) state = (registerA a state, registerA b state, c)
 
 setReg :: Int -> Int -> State -> State
 setReg pos val state = state { sRegisters = S.update pos val (sRegisters state) }
@@ -69,6 +73,22 @@ execOp state (PUT a) = op $ registerA a state
     where
         op v = state { sOutput = v:(sOutput state) }
 
+execOp state (JIT a b) = op (registerA a state) (registerA b state)
+    where
+        op a' b' = state { sPosition = if a' /= 0 then b' else (sPosition state) + 3 }
+
+execOp state (JIF a b) = op (registerA a state) (registerA b state)
+    where
+        op a' b' = state { sPosition = if a' == 0 then b' else (sPosition state) + 3 }
+
+execOp state (SLT a b c) = op $ registerABC a b c state
+    where
+        op (a, b, c) = setReg c (if a < b then 1 else 0) state
+
+execOp state (SEQ a b c) = op $ registerABC a b c state
+    where
+        op (a, b, c) = setReg c (if a == b then 1 else 0) state
+
 execOp state HLT = state
 
 toAddress :: S.Seq Register -> Position -> Int -> Address
@@ -80,8 +100,12 @@ toAddress registers pos shift = toA $ registers `S.index` (pos + shift)
 
 toCode :: S.Seq Register -> Position -> (InstructionSet, Maybe Int)
 toCode registers pos = case (registers `S.index` pos `mod` 100) of
-    1 -> (ADD (toAddress registers pos 1) (toAddress registers pos 2) (toAddress registers pos 3), Just $ pos + 4)
-    2 -> (MUL (toAddress registers pos 1) (toAddress registers pos 2) (toAddress registers pos 3), Just $ pos + 4)
-    3 -> (GET (toAddress registers pos 1), Just $ pos + 2)
-    4 -> (PUT (toAddress registers pos 1), Just $ pos + 2)
+    1 -> (ADD (toAddress registers pos 1) (toAddress registers pos 2) (toAddress registers pos 3), Just 4)
+    2 -> (MUL (toAddress registers pos 1) (toAddress registers pos 2) (toAddress registers pos 3), Just 4)
+    3 -> (GET (toAddress registers pos 1), Just 2)
+    4 -> (PUT (toAddress registers pos 1), Just 2)
+    5 -> (JIT (toAddress registers pos 1) (toAddress registers pos 2), Just 0)
+    6 -> (JIF (toAddress registers pos 1) (toAddress registers pos 2), Just 0)
+    7 -> (SLT (toAddress registers pos 1) (toAddress registers pos 2) (toAddress registers pos 3), Just 4)
+    8 -> (SEQ (toAddress registers pos 1) (toAddress registers pos 2) (toAddress registers pos 3), Just 4)
     99 -> (HLT, Nothing)
