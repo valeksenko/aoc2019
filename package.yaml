@@ -29,6 +29,7 @@ dependencies:
 - random
 - data-ordlist
 - digits
+- extra
 
 library:
   source-dirs: src
