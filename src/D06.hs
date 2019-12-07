@@ -8,7 +8,7 @@ import Data.List
 import Data.Tuple.Extra
 
 type Orbit = (String, String)
-data Orbital a = Body a [Orbital a] deriving (Eq, Show)
+data Orbital a = Body a [Orbital a] deriving (Eq, Ord, Show)
 
 buildorbital :: [String] -> Orbital String
 buildorbital = build . map parse
