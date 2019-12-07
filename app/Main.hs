@@ -1,6 +1,6 @@
 module Main where
 
-import D07P1
+import D07P2
 
 main :: IO ()
 main = do

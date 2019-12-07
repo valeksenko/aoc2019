@@ -1,10 +1,14 @@
 module IntcodeV2 (
     exec
+  , mkIntcode
+  , runProgram
   , Register
+  , State(..)
 ) where
 
 import qualified Data.Sequence as S
 import Data.Foldable (toList)
+import Data.Maybe
 
 type Register = Int
 type Position = Int
@@ -28,20 +32,25 @@ data InstructionSet
 
 data State =
     State {
-        sPosition :: Position
+        sId :: Char
+      , sPosition :: Position
       , sInput :: [Int]
       , sOutput :: [Int]
+      , sFinished :: Bool
       , sRegisters :: S.Seq Register
     } deriving(Show, Eq)
 
 exec :: [Int] -> [Register] -> [Int]
-exec input = sOutput . runProgram . State 0 input [] . S.fromList
+exec input = sOutput . runProgram . mkIntcode 'A' input
+
+mkIntcode :: Char -> [Int] -> [Register] -> State
+mkIntcode id input = State id 0 input [] False . S.fromList
 
 runProgram :: State -> State
 runProgram state =  run state $ toCode (sRegisters state) (sPosition state)
     where
-        run state (op, (Just skip)) = runProgram . incP skip $ execOp state op
-        run state (op, Nothing) = execOp state op
+        run state (op, (Just skip)) = maybe state (runProgram . incP skip) $ execOp state op
+        run state (op, Nothing) = fromJust $ execOp state op
         incP skip state' = state' { sPosition = (sPosition state') + skip }
 
 registerA :: Address -> State -> Int
@@ -55,41 +64,42 @@ registerABC a b (PositionMode c) state = (registerA a state, registerA b state, 
 setReg :: Int -> Int -> State -> State
 setReg pos val state = state { sRegisters = S.update pos val (sRegisters state) }
 
-execOp :: State -> InstructionSet -> State
+execOp :: State -> InstructionSet -> Maybe State
 
 execOp state (ADD a b c) = op $ registerABC a b c state
     where
-        op (a, b, c) = setReg c (a + b) state
+        op (a, b, c) = Just $ setReg c (a + b) state
 
 execOp state (MUL a b c) = op $ registerABC a b c state
     where
-        op (a, b, c) = setReg c (a * b) state
+        op (a, b, c) = Just $ setReg c (a * b) state
 
 execOp state (GET (PositionMode a)) = op $ sInput state
     where
-        op (x:xs) = (setReg a x state) { sInput = xs }
+        op [] = Nothing
+        op (x:xs) = Just $ (setReg a x state) { sInput = xs }
 
 execOp state (PUT a) = op $ registerA a state
     where
-        op v = state { sOutput = v:(sOutput state) }
+        op v = Just $ state { sOutput = v:(sOutput state) }
 
 execOp state (JIT a b) = op (registerA a state) (registerA b state)
     where
-        op a' b' = state { sPosition = if a' /= 0 then b' else (sPosition state) + 3 }
+        op a' b' = Just $ state { sPosition = if a' /= 0 then b' else (sPosition state) + 3 }
 
 execOp state (JIF a b) = op (registerA a state) (registerA b state)
     where
-        op a' b' = state { sPosition = if a' == 0 then b' else (sPosition state) + 3 }
+        op a' b' = Just $ state { sPosition = if a' == 0 then b' else (sPosition state) + 3 }
 
 execOp state (SLT a b c) = op $ registerABC a b c state
     where
-        op (a, b, c) = setReg c (if a < b then 1 else 0) state
+        op (a, b, c) = Just $ setReg c (if a < b then 1 else 0) state
 
 execOp state (SEQ a b c) = op $ registerABC a b c state
     where
-        op (a, b, c) = setReg c (if a == b then 1 else 0) state
+        op (a, b, c) = Just $ setReg c (if a == b then 1 else 0) state
 
-execOp state HLT = state
+execOp state HLT = Just $ state { sFinished = True }
 
 toAddress :: S.Seq Register -> Position -> Int -> Address
 toAddress registers pos shift = toA $ registers `S.index` (pos + shift)
