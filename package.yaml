@@ -30,6 +30,7 @@ dependencies:
 - data-ordlist
 - digits
 - extra
+- split
 
 library:
   source-dirs: src
