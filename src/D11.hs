@@ -1,13 +1,55 @@
-module D11P1 (
-    panelcount
+module D11 (
+    paintHull
+  , black
+  , white
+  , Color
+  , PanelMap
 ) where
 
 import IntcodeV3
-import D11
 import qualified Data.Map as M
 
-panelcount :: [Register] -> Int
-panelcount = M.size . paintHull black
+type Coordinate = (Int, Int)
+type Color = Int
+type PanelMap = M.Map Coordinate Color
+type Direction = (Int, Int)
+
+data Robot =
+    Robot {
+        rPosition :: Coordinate
+      , rDirection :: Direction
+      , rPanelMap :: PanelMap
+      , rCode :: State
+    } deriving(Show, Eq)
+
+black = 0 :: Color
+white = 1 :: Color
+
+paintHull :: Color -> [Register] -> PanelMap
+paintHull color = rPanelMap . until (sFinished . rCode) paintPanel . mkRobot
+    where
+        mkRobot = Robot (0,0) (0,-1) M.empty . mkIntcode 'R' [color]
+
+paintPanel :: Robot -> Robot
+paintPanel r = paint . runProgram $ rCode r
+    where
+        paint state = addInput . update state . updates $ sOutput state
+        updates (dirchange:color:_) = (paintC color, changeDirection dirchange $ rDirection r)
+        update state (panelMap, direction) = Robot (move direction $ rPosition r) direction panelMap state
+        paintC color = M.insert (rPosition r) color $ rPanelMap r
+        addInput r' =  r' { rCode = (rCode r') { sInput = [M.findWithDefault black (rPosition r') (rPanelMap r')] } }
+        move (x, y) (x', y') = (x + x', y + y')
+
+changeDirection :: Int -> Direction -> Direction
+changeDirection d (x, y) = case (d, x, y) of
+        (0, 0, 1) -> (1, 0)
+        (0, 0, -1) -> (-1, 0)
+        (0, 1, 0) -> (0, -1)
+        (0, -1, 0) -> (0, 1)
+        (1, 0, 1) -> (-1, 0)
+        (1, 0, -1) -> (1, 0)
+        (1, 1, 0) -> (0, 1)
+        (1, -1, 0) -> (0, -1)
 
 {-
 https://adventofcode.com/2019/day/11
