@@ -1,14 +1,43 @@
-module D10P1 (
-    maxasteroidcount
+module D10 ( 
+    parseSpaceMap
+  , visibleAsteroids
+  , allAsteroids
+  , Coordinate
+  , SpaceObject(..)
 ) where
 
-import D10
 import Data.List
 
-maxasteroidcount :: [(SpaceObject, Coordinate)] -> Int
-maxasteroidcount = maximum . asteroidCounts . allAsteroids
+type Coordinate = (Int, Int)
+
+data SpaceObject
+    = Empty
+    | Asteroid
+    deriving(Show, Eq)
+
+visibleAsteroids :: [Coordinate] -> Coordinate -> [Coordinate]
+visibleAsteroids asteroids c = filter (isVisible asteroids c) asteroids
+
+allAsteroids :: [(SpaceObject, Coordinate)] -> [Coordinate]
+allAsteroids = map snd . filter ((==) Asteroid . fst)
+
+isVisible :: [Coordinate] -> Coordinate -> Coordinate -> Bool
+isVisible coords c1@(y1, x1) c2@(y2, x2) = if c1 == c2 then False else not (any blocking lineOfSight)
     where
-        asteroidCounts asteroids = map (length . visibleAsteroids asteroids) asteroids
+        blocking c = elem c coords 
+        lineOfSight = tail . init $ zip (range y1 y2 (abs $ x1 - x2)) (range x1 x2 (abs $ y1 - y2))
+        range a1 a2 b = enumFromThenTo (min a1 a2) ((min a1 a2) + (step (abs $ a1 - a2) b)) (max a1 a2)
+        step a b = a `div` (gcd a b)
+
+parseSpaceMap :: String -> [(SpaceObject, Coordinate)]
+parseSpaceMap = fst . foldl' parse ([], (0, 0))
+    where
+        parse (space, (y, x)) c = case c of
+            '.' -> (space ++ [(Empty, (y, x))], (y, x + 1))
+            '#' -> (space ++ [(Asteroid, (y, x))], (y, x + 1))
+            ' ' -> (space, (y, x))
+            '\n' -> (space, (y + 1, 0))
+
 
 {-
 https://adventofcode.com/2019/day/10
