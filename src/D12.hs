@@ -1,16 +1,31 @@
-module D12P1 (
-    totalenergy
+module D12 (
+    mkSimullation
+  , runSimullation
+  , Coordinate
+  , Velocity
+  , Body
 ) where
 
-import D12
 import Data.List
 
-totalenergy :: Int -> [Coordinate] -> Int
-totalenergy steps moons = sum . map energy $ foldr runStep (mkSimullation moons) [1..steps]
+type Coordinate = (Int, Int, Int)
+type Velocity = (Int, Int, Int)
+type Body = (Velocity, Coordinate)
+
+mkSimullation :: [Coordinate] -> [Body]
+mkSimullation = zip (repeat (0,0,0))
+
+runSimullation :: [Body] -> [Body]
+runSimullation moons = map applyVelocity $ map applyGravity moons
     where
-        runStep _ = runSimullation
-        energy (v, c) = calcE v * calcE c
-        calcE (x,y,z) = abs x + abs y + abs z
+        applyVelocity (v@(vx,vy,vz), (cx,cy,cz)) = (v, (vx+cx, vy+cy, vz+cz))
+        applyGravity m = foldr applyG m moons
+        applyG (_,c') (v,c) = (newVelocity c c' v, c)
+        newVelocity (x1,y1,z1) (x2,y2,z2) (x,y,z) = (x + gravity x1 x2, y + gravity y1 y2, z + gravity z1 z2)
+        gravity a b
+            | a < b = 1
+            | a > b = -1
+            | otherwise = 0
 
 {-
 https://adventofcode.com/2019/day/12
