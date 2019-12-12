@@ -22,12 +22,11 @@ allAsteroids :: [(SpaceObject, Coordinate)] -> [Coordinate]
 allAsteroids = map snd . filter ((==) Asteroid . fst)
 
 isVisible :: [Coordinate] -> Coordinate -> Coordinate -> Bool
-isVisible coords c1@(y1, x1) c2@(y2, x2) = if c1 == c2 then False else not (any blocking lineOfSight)
+isVisible coords c1@(y1, x1) c2@(y2, x2) = if c1 == c2 then False else not (any (blocking lineOfSight) coords)
     where
-        blocking c = elem c coords 
-        lineOfSight = tail . init $ zip (range y1 y2 (abs $ x1 - x2)) (range x1 x2 (abs $ y1 - y2))
-        range a1 a2 b = enumFromThenTo (min a1 a2) ((min a1 a2) + (step (abs $ a1 - a2) b)) (max a1 a2)
-        step a b = a `div` (gcd a b)
+        blocking a c@(x, y) = (c /= c1) && (c /= c2) && (atan ((fromIntegral $ y1 - y) / (fromIntegral $ x1 - x)) == a) && (between x x1 x2) && (between y y1 y2)
+        lineOfSight = atan ((fromIntegral $ y1 - y2) / (fromIntegral $ x1 - x2))
+        between b a1 a2 = (b >= (min a1 a2)) && (b <= (max a1 a2))
 
 parseSpaceMap :: String -> [(SpaceObject, Coordinate)]
 parseSpaceMap = fst . foldl' parse ([], (0, 0))
