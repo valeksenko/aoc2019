@@ -1,0 +1,96 @@
+module D13P2 (
+    gamescore
+) where
+
+import IntcodeV3
+import Data.List
+import Data.Maybe
+import qualified Data.Map as M
+import Debug.Trace
+
+type Coordinate = (Int, Int)
+type GameMap = M.Map Coordinate BlockTile
+
+data BlockTile
+    = Wall
+    | Block
+    | Paddle
+    | Ball
+    | Score Int
+    deriving(Show, Eq)
+
+data Game =
+    Game {
+        gState :: State
+      , gBalls :: [Coordinate]
+      , gPaddle :: Coordinate
+      , gMap :: GameMap
+    } deriving(Show, Eq)
+
+gamescore :: [Register] -> Maybe BlockTile
+gamescore = M.lookup (-1,0) . gMap . until gameOver (play . showGame) . mkGame . runProgram . mkIntcode 'G' []
+    where
+        gameOver = M.null . M.filter ((==) Block) . gMap
+        play game = updateGame (makeMove game) game
+        mkGame state = initBalls . updateGame state $ Game state [] (0,0) (mapOutput M.empty state)
+        initBalls game = game { gBalls = (gBalls game) ++ (gBalls game) }
+        updateGame state = updatePositions . updateState state
+        updateState state game = game { gState = state, gMap = mapOutput (gMap game) state }
+        updatePositions game = game { gBalls = (findTile Ball $ gMap game):(gBalls game), gPaddle = (findTile Paddle $ gMap game) }
+
+makeMove :: Game -> State
+makeMove game = runProgram $ (gState game) { sInput = [nextMove $ gBalls game], sOutput = [] }
+    where
+        nextMove (b1:b2:_) = traceShow (b1,b2) . newDirection (traceShowId . findTile Paddle $ gMap game) b1 $ nextPosition b1 b2
+        nextPosition (x,y) (x',_) = case (nextTile y $ x + x - x') of
+            Nothing -> x + x - x'
+            Just Paddle -> x
+            otherwise -> x' + x' - x
+        nextTile y x = M.lookup (x, y) (gMap game)
+        newDirection (px,py) b nextb = traceShowId $ if (px,py-1) == b then 0 else case (compare px nextb) of
+                EQ -> 0
+                LT -> 1
+                GT -> -1
+
+findTile :: BlockTile -> GameMap -> Coordinate
+findTile t = fst . fromJust . find ((==) t . snd) . M.toList
+
+mapOutput :: GameMap -> State -> GameMap
+mapOutput gmap = foldl' mapOps gmap . (toOps []) . sOutput
+    where
+        toOps ops [] = ops
+        toOps ops (tid:y:x:output) = toOps ((tid, y, x):ops) output
+        mapOps omap (tid,y,x) = case tid of
+            0 -> M.delete (x,y) omap
+            1 -> M.insert (x,y) Wall omap
+            2 -> M.insert (x,y) Block omap
+            3 -> M.insert (x,y) Paddle omap
+            4 -> M.insert (x,y) Ball omap
+            otherwise -> M.insert (x,y) (Score tid) omap
+
+showGame :: Game -> Game
+showGame game = (traceShow "**********") $ (traceShow $ showG (gMap game)) game
+    where
+        showG gmap = (traceShow $ M.lookup (-1,0) gmap) . length . filter ((==) "**") $ map (addLine gmap) [0..20]
+        addLine gmap y = traceShowId $ map (addPixel gmap y) [0..37]
+        addPixel gmap y x = case M.lookup (x,y) gmap of
+                Nothing -> ' '
+                (Just Wall) -> '#'
+                (Just Block) -> '-'
+                (Just Paddle) -> '_'
+                (Just Ball) -> 'o'
+
+{-
+https://adventofcode.com/2019/day/13#part2
+
+The game didn't run because you didn't put in any quarters. Unfortunately, you did not bring any quarters. Memory address 0 represents the number of quarters that have been inserted; set it to 2 to play for free.
+
+The arcade cabinet has a joystick that can move left and right. The software reads the position of the joystick with input instructions:
+
+If the joystick is in the neutral position, provide 0.
+If the joystick is tilted to the left, provide -1.
+If the joystick is tilted to the right, provide 1.
+The arcade cabinet also has a segment display capable of showing a single number that represents the player's current score. When three output instructions specify X=-1, Y=0, the third output instruction is not a tile; the value instead specifies the new score to show in the segment display. For example, a sequence of output values like -1,0,12345 would show 12345 as the player's current score.
+
+Beat the game by breaking all the blocks. What is your score after the last block is broken?
+-}
