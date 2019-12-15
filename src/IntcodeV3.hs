@@ -42,7 +42,7 @@ data State =
       , sOutput :: [Int]
       , sFinished :: Bool
       , sRegisters :: S.Seq Register
-    } deriving(Show, Eq)
+    } deriving(Show, Eq, Ord)
 
 exec :: [Int] -> [Register] -> [Int]
 exec input = sOutput . runProgram . mkIntcode 'A' input
