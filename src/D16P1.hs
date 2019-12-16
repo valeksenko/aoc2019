@@ -2,107 +2,81 @@ module D16P1 (
     fftnumber
 ) where
 
+import D16
 import Data.List
 import Data.Digits
-import Debug.Trace
-
-basePattern = [0, 1, 0, -1]
 
 fftnumber :: Int -> Integer -> Integer
 fftnumber numSteps = unDigits 10 . take 8 . last . take (numSteps + 1) . iterate calcFFT . digits 10
 
-calcFFT :: [Integer] -> [Integer]
-calcFFT input = map takeDigit . map calc $ [1..length input]
-    where
-        calc n = sum . map (uncurry (*)) $ zip input (base n)
-        base n = tail . concatMap (replicate n) $ cycle basePattern
-        takeDigit n = (abs n) `mod` 10
-
 {-
-https://adventofcode.com/2019/day/12
+https://adventofcode.com/2019/day/16
 
-he space near Jupiter is not a very safe place; you need to be careful of a big distracting red spot, extreme radiation, and a whole lot of moons swirling around. You decide to start by tracking the four largest moons: Io, Europa, Ganymede, and Callisto.
+You're 3/4ths of the way through the gas giants. Not only do roundtrip signals to Earth take five hours, but the signal quality is quite bad as well. You can clean up the signal with the Flawed Frequency Transmission algorithm, or FFT.
 
-After a brief scan, you calculate the position of each moon (your puzzle input). You just need to simulate their motion so you can avoid them.
+As input, FFT takes a list of numbers. In the signal you received (your puzzle input), each number is a single digit: data like 15243 represents the sequence 1, 5, 2, 4, 3.
 
-Each moon has a 3-dimensional position (x, y, and z) and a 3-dimensional velocity. The position of each moon is given in your scan; the x, y, and z velocity of each moon starts at 0.
+FFT operates in repeated phases. In each phase, a new list is constructed with the same length as the input list. This new list is also used as the input for the next phase.
 
-Simulate the motion of the moons in time steps. Within each time step, first update the velocity of every moon by applying gravity. Then, once all moons' velocities have been updated, update the position of every moon by applying velocity. Time progresses by one step once all of the positions are updated.
+Each element in the new list is built by multiplying every value in the input list by a value in a repeating pattern and then adding up the results. So, if the input list were 9, 8, 7, 6, 5 and the pattern for a given element were 1, 2, 3, the result would be 9*1 + 8*2 + 7*3 + 6*1 + 5*2 (with each input element on the left and each value in the repeating pattern on the right of each multiplication). Then, only the ones digit is kept: 38 becomes 8, -17 becomes 7, and so on.
 
-To apply gravity, consider every pair of moons. On each axis (x, y, and z), the velocity of each moon changes by exactly +1 or -1 to pull the moons together. For example, if Ganymede has an x position of 3, and Callisto has a x position of 5, then Ganymede's x velocity changes by +1 (because 5 > 3) and Callisto's x velocity changes by -1 (because 3 < 5). However, if the positions on a given axis are the same, the velocity on that axis does not change for that pair of moons.
+While each element in the output array uses all of the same input array elements, the actual repeating pattern to use depends on which output element is being calculated. The base pattern is 0, 1, 0, -1. Then, repeat each value in the pattern a number of times equal to the position in the output list being considered. Repeat once for the first element, twice for the second element, three times for the third element, and so on. So, if the third element of the output list is being calculated, repeating the values would produce: 0, 0, 0, 1, 1, 1, 0, 0, 0, -1, -1, -1.
 
-Once all gravity has been applied, apply velocity: simply add the velocity of each moon to its own position. For example, if Europa has a position of x=1, y=2, z=3 and a velocity of x=-2, y=0,z=3, then its new position would be x=-1, y=2, z=6. This process does not modify the velocity of any moon.
+When applying the pattern, skip the very first value exactly once. (In other words, offset the whole pattern left by one.) So, for the second element of the output list, the actual pattern used would be: 0, 1, 1, 0, 0, -1, -1, 0, 0, 1, 1, 0, 0, -1, -1, ....
 
-For example, suppose your scan reveals the following positions:
+After using this process to calculate each element of the output list, the phase is complete, and the output list of this phase is used as the new input list for the next phase, if any.
 
-<x=-1, y=0, z=2>
-<x=2, y=-10, z=-7>
-<x=4, y=-8, z=8>
-<x=3, y=5, z=-1>
-Simulating the motion of these moons would produce the following:
+Given the input signal 12345678, below are four phases of FFT. Within each phase, each output digit is calculated on a single line with the result at the far right; each multiplication operation shows the input digit on the left and the pattern value on the right:
 
-After 0 steps:
-pos=<x=-1, y=  0, z= 2>, vel=<x= 0, y= 0, z= 0>
-pos=<x= 2, y=-10, z=-7>, vel=<x= 0, y= 0, z= 0>
-pos=<x= 4, y= -8, z= 8>, vel=<x= 0, y= 0, z= 0>
-pos=<x= 3, y=  5, z=-1>, vel=<x= 0, y= 0, z= 0>
+Input signal: 12345678
 
-After 1 step:
-pos=<x= 2, y=-1, z= 1>, vel=<x= 3, y=-1, z=-1>
-pos=<x= 3, y=-7, z=-4>, vel=<x= 1, y= 3, z= 3>
-pos=<x= 1, y=-7, z= 5>, vel=<x=-3, y= 1, z=-3>
-pos=<x= 2, y= 2, z= 0>, vel=<x=-1, y=-3, z= 1>
+1*1  + 2*0  + 3*-1 + 4*0  + 5*1  + 6*0  + 7*-1 + 8*0  = 4
+1*0  + 2*1  + 3*1  + 4*0  + 5*0  + 6*-1 + 7*-1 + 8*0  = 8
+1*0  + 2*0  + 3*1  + 4*1  + 5*1  + 6*0  + 7*0  + 8*0  = 2
+1*0  + 2*0  + 3*0  + 4*1  + 5*1  + 6*1  + 7*1  + 8*0  = 2
+1*0  + 2*0  + 3*0  + 4*0  + 5*1  + 6*1  + 7*1  + 8*1  = 6
+1*0  + 2*0  + 3*0  + 4*0  + 5*0  + 6*1  + 7*1  + 8*1  = 1
+1*0  + 2*0  + 3*0  + 4*0  + 5*0  + 6*0  + 7*1  + 8*1  = 5
+1*0  + 2*0  + 3*0  + 4*0  + 5*0  + 6*0  + 7*0  + 8*1  = 8
 
-[... SKIPPED ...]
+After 1 phase: 48226158
 
-After 10 steps:
-pos=<x= 2, y= 1, z=-3>, vel=<x=-3, y=-2, z= 1>
-pos=<x= 1, y=-8, z= 0>, vel=<x=-1, y= 1, z= 3>
-pos=<x= 3, y=-6, z= 1>, vel=<x= 3, y= 2, z=-3>
-pos=<x= 2, y= 0, z= 4>, vel=<x= 1, y=-1, z=-1>
-Then, it might help to calculate the total energy in the system. The total energy for a single moon is its potential energy multiplied by its kinetic energy. A moon's potential energy is the sum of the absolute values of its x, y, and z position coordinates. A moon's kinetic energy is the sum of the absolute values of its velocity coordinates. Below, each line shows the calculations for a moon's potential energy (pot), kinetic energy (kin), and total energy:
+4*1  + 8*0  + 2*-1 + 2*0  + 6*1  + 1*0  + 5*-1 + 8*0  = 3
+4*0  + 8*1  + 2*1  + 2*0  + 6*0  + 1*-1 + 5*-1 + 8*0  = 4
+4*0  + 8*0  + 2*1  + 2*1  + 6*1  + 1*0  + 5*0  + 8*0  = 0
+4*0  + 8*0  + 2*0  + 2*1  + 6*1  + 1*1  + 5*1  + 8*0  = 4
+4*0  + 8*0  + 2*0  + 2*0  + 6*1  + 1*1  + 5*1  + 8*1  = 0
+4*0  + 8*0  + 2*0  + 2*0  + 6*0  + 1*1  + 5*1  + 8*1  = 4
+4*0  + 8*0  + 2*0  + 2*0  + 6*0  + 1*0  + 5*1  + 8*1  = 3
+4*0  + 8*0  + 2*0  + 2*0  + 6*0  + 1*0  + 5*0  + 8*1  = 8
 
-Energy after 10 steps:
-pot: 2 + 1 + 3 =  6;   kin: 3 + 2 + 1 = 6;   total:  6 * 6 = 36
-pot: 1 + 8 + 0 =  9;   kin: 1 + 1 + 3 = 5;   total:  9 * 5 = 45
-pot: 3 + 6 + 1 = 10;   kin: 3 + 2 + 3 = 8;   total: 10 * 8 = 80
-pot: 2 + 0 + 4 =  6;   kin: 1 + 1 + 1 = 3;   total:  6 * 3 = 18
-Sum of total energy: 36 + 45 + 80 + 18 = 179
-In the above example, adding together the total energy for all moons after 10 steps produces the total energy in the system, 179.
+After 2 phases: 34040438
 
-Here's a second example:
+3*1  + 4*0  + 0*-1 + 4*0  + 0*1  + 4*0  + 3*-1 + 8*0  = 0
+3*0  + 4*1  + 0*1  + 4*0  + 0*0  + 4*-1 + 3*-1 + 8*0  = 3
+3*0  + 4*0  + 0*1  + 4*1  + 0*1  + 4*0  + 3*0  + 8*0  = 4
+3*0  + 4*0  + 0*0  + 4*1  + 0*1  + 4*1  + 3*1  + 8*0  = 1
+3*0  + 4*0  + 0*0  + 4*0  + 0*1  + 4*1  + 3*1  + 8*1  = 5
+3*0  + 4*0  + 0*0  + 4*0  + 0*0  + 4*1  + 3*1  + 8*1  = 5
+3*0  + 4*0  + 0*0  + 4*0  + 0*0  + 4*0  + 3*1  + 8*1  = 1
+3*0  + 4*0  + 0*0  + 4*0  + 0*0  + 4*0  + 3*0  + 8*1  = 8
 
-<x=-8, y=-10, z=0>
-<x=5, y=5, z=10>
-<x=2, y=-7, z=3>
-<x=9, y=-8, z=-3>
-Every ten steps of simulation for 100 steps produces:
+After 3 phases: 03415518
 
-After 0 steps:
-pos=<x= -8, y=-10, z=  0>, vel=<x=  0, y=  0, z=  0>
-pos=<x=  5, y=  5, z= 10>, vel=<x=  0, y=  0, z=  0>
-pos=<x=  2, y= -7, z=  3>, vel=<x=  0, y=  0, z=  0>
-pos=<x=  9, y= -8, z= -3>, vel=<x=  0, y=  0, z=  0>
+0*1  + 3*0  + 4*-1 + 1*0  + 5*1  + 5*0  + 1*-1 + 8*0  = 0
+0*0  + 3*1  + 4*1  + 1*0  + 5*0  + 5*-1 + 1*-1 + 8*0  = 1
+0*0  + 3*0  + 4*1  + 1*1  + 5*1  + 5*0  + 1*0  + 8*0  = 0
+0*0  + 3*0  + 4*0  + 1*1  + 5*1  + 5*1  + 1*1  + 8*0  = 2
+0*0  + 3*0  + 4*0  + 1*0  + 5*1  + 5*1  + 1*1  + 8*1  = 9
+0*0  + 3*0  + 4*0  + 1*0  + 5*0  + 5*1  + 1*1  + 8*1  = 4
+0*0  + 3*0  + 4*0  + 1*0  + 5*0  + 5*0  + 1*1  + 8*1  = 9
+0*0  + 3*0  + 4*0  + 1*0  + 5*0  + 5*0  + 1*0  + 8*1  = 8
 
-After 10 steps:
-pos=<x= -9, y=-10, z=  1>, vel=<x= -2, y= -2, z= -1>
-pos=<x=  4, y= 10, z=  9>, vel=<x= -3, y=  7, z= -2>
-pos=<x=  8, y=-10, z= -3>, vel=<x=  5, y= -1, z= -2>
-pos=<x=  5, y=-10, z=  3>, vel=<x=  0, y= -4, z=  5>
+After 4 phases: 01029498
+Here are the first eight digits of the final output list after 100 phases for some larger inputs:
 
-[... SKIPPED ...]
-
-After 100 steps:
-pos=<x=  8, y=-12, z= -9>, vel=<x= -7, y=  3, z=  0>
-pos=<x= 13, y= 16, z= -3>, vel=<x=  3, y=-11, z= -5>
-pos=<x=-29, y=-11, z= -1>, vel=<x= -3, y=  7, z=  4>
-pos=<x= 16, y=-13, z= 23>, vel=<x=  7, y=  1, z=  1>
-
-Energy after 100 steps:
-pot:  8 + 12 +  9 = 29;   kin: 7 +  3 + 0 = 10;   total: 29 * 10 = 290
-pot: 13 + 16 +  3 = 32;   kin: 3 + 11 + 5 = 19;   total: 32 * 19 = 608
-pot: 29 + 11 +  1 = 41;   kin: 3 +  7 + 4 = 14;   total: 41 * 14 = 574
-pot: 16 + 13 + 23 = 52;   kin: 7 +  1 + 1 =  9;   total: 52 *  9 = 468
-Sum of total energy: 290 + 608 + 574 + 468 = 1940
-What is the total energy in the system after simulating the moons given in your scan for 1000 steps?
+80871224585914546619083218645595 becomes 24176176.
+19617804207202209144916044189917 becomes 73745418.
+69317163492948606335995924319873 becomes 52432133.
+After 100 phases of FFT, what are the first eight digits in the final output list?
 -}
