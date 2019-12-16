@@ -2,19 +2,14 @@ module D15P1 (
     minmoves
 ) where
 
+import D15
 import IntcodeV3
 import Data.List
 import Data.Maybe
-import Algorithm.Search (dijkstra)
 
 minmoves :: [Register] -> Int
-minmoves =  fst . fromJust . findMin . runProgram . mkIntcode 'A' []
-    where
-        findMin = dijkstra unblocked cost found
-        found = (==) [2] . take 1 . sOutput
-        cost _ _ = 1
-        unblocked state = filter ((/=) 0 . head . sOutput) $ map (run state) [1..4]
-        run state n = runProgram $ state { sInput = [n] }
+minmoves =  fst . fromJust . findMin
+
 {-
 https://adventofcode.com/2019/day/15
 
