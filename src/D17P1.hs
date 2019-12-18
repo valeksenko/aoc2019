@@ -1,36 +1,15 @@
 module D17P1 (
     calibrationcode
-  , showMap
 ) where
 
+import D17
 import IntcodeV3
 import Data.List
 import Data.Maybe
 import qualified Data.Map as M
-import Debug.Trace
-
-type Coordinate = (Int, Int)
-type PixelMap = M.Map Coordinate Pixel
-
-data Direction
-    = North
-    | South
-    | West
-    | East
-    | Tumbling
-    deriving(Show, Eq)
-
-data Pixel
-    = Scaffold
-    | Space
-    | Robot Direction
-    deriving(Show, Eq)
-
-scaffold = 35
-space = 46
 
 calibrationcode :: [Register] -> Int
-calibrationcode =  sum . alignmentParams . buildMap . exec []
+calibrationcode =  sum . alignmentParams . buildMap
 
 alignmentParams :: PixelMap -> [Int]
 alignmentParams vmap = map (uncurry (*)) . map distances . M.keys $ M.filterWithKey intersection vmap
@@ -39,22 +18,6 @@ alignmentParams vmap = map (uncurry (*)) . map distances . M.keys $ M.filterWith
         isScaffold pos = maybe False ((==) Scaffold) $ M.lookup pos vmap
         distances pos = (distance 0 pos (-1, 0), distance 0 pos (0, -1))
         distance units (x, y) dir@(x', y') = if M.member (x + x', y + y') vmap then distance (units + 1) (x + x', y + y') dir else units
-
-buildMap :: [Int] -> PixelMap
-buildMap = fst . foldr build (M.empty, (0, 0))
-    where
-        build pixel (vmap, pos@(x,y)) = case pixel of
-            35 -> (M.insert pos Scaffold vmap, (x + 1, y))
-            46 -> (M.insert pos Space vmap, (x + 1, y))
-            60 -> (M.insert pos (Robot West) vmap, (x + 1, y))
-            62 -> (M.insert pos (Robot East) vmap, (x + 1, y))
-            94 -> (M.insert pos (Robot North) vmap, (x + 1, y))
-            118 -> (M.insert pos (Robot South) vmap, (x + 1, y))
-            88 -> (M.insert pos (Robot Tumbling) vmap, (x + 1, y))
-            10 -> (vmap, (0, y + 1))
-
-showMap :: [Int] -> String
-showMap = map toEnum
 
 {-
 https://adventofcode.com/2019/day/17
