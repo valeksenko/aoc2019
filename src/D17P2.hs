@@ -9,7 +9,7 @@ import Data.List
 dustcount :: [String] -> [Register] -> Int
 dustcount code =  head . exec input . (2:) . tail
     where
-        input = map fromEnum code 
+        input = concatMap (map fromEnum) code
 
 {-
 https://adventofcode.com/2019/day/17#part2
