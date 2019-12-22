@@ -1,4 +1,4 @@
-module D20P1 (
+module D20P2 (
     stepcount
 ) where
 
