@@ -1,39 +1,12 @@
 module D22P1 (
     cardposition
-  , shuffled
-  , ShuffleTechnique(..)
 ) where
 
+import D22
 import Data.List
-import Data.Maybe
-import Data.Ord
 
-type Cards = [Int]
-
-data ShuffleTechnique
-    = DealIntoNewStack
-    | Cut Int
-    | DealWithIncrement Int
-    deriving(Show, Eq, Ord)
-
-cardposition :: Int -> [ShuffleTechnique] -> Maybe Int
-cardposition amount = elemIndex 2019 . shuffled amount
-
-shuffled :: Int -> [ShuffleTechnique] -> Cards
-shuffled amount = foldl' shuffle [0..(amount - 1)]
-
-
-shuffle :: Cards -> ShuffleTechnique -> Cards
-
-shuffle cards (DealIntoNewStack) = reverse cards
-
-shuffle cards (Cut n) = if n < 0 then cut (length cards + n) else cut n
-    where
-        cut i = (drop i cards) ++ (take i cards)
-
-shuffle cards (DealWithIncrement n) = map fst . sortBy (comparing order) $ zip cards [0,n..]
-    where
-        order (_, n) = n `mod` (length cards)
+cardposition :: Int -> [ShuffleTechnique] -> Maybe Card
+cardposition amount = elemIndex 2019 . shuffled amount 1
 
 {-
 https://adventofcode.com/2019/day/22
