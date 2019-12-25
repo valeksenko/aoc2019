@@ -21,20 +21,20 @@ data NAT =
     } deriving(Show, Eq, Ord)
 
 yvalue :: [Register] -> Int
-yvalue = res . until (dupy . take 2 . traceShowId . nSent) run . init . mkStates
+yvalue = res . until (dupy . take 2 . nSent) run . init . mkStates
     where
         init states = foldr (\s nat -> queuePackets nat s) (NAT [] [] [] Nothing) states
         mkStates registers = map (\i -> runProgram $ mkIntcode (chr i) [i] registers) [0..49]
-        run nat = (traceShow $ nQueue nat) . natCheck . foldr (transmit $ nQueue nat) (nat { nStates = [], nQueue = [] }) $ nStates nat
+        run nat = natCheck . foldr (transmit $ nQueue nat) (nat { nStates = [], nQueue = [] }) $ nStates nat
         transmit nqueue state nat = queuePackets nat . runProgram $ state { sOutput = [], sInput = compInput (ord $ sId state) nqueue }
         dupy sent = ((length sent) == 2) && ((head sent) == (last sent))
         res = head . nSent
 
 compInput :: Int -> [Packet] -> [Int]
-compInput cid = mkInput . foldr addPkt []
+compInput cid = mkInput . foldl' addPkt []
     where
         mkInput packets = if null packets then [-1] else packets
-        addPkt (c,x,y) packets = if c == cid then x:y:packets else packets
+        addPkt packets (c,x,y) = if c == cid then x:y:packets else packets
     
 queuePackets :: NAT -> State -> NAT
 queuePackets nat state = nat { nQueue = queuePkts $ sOutput state, nStates = state:(nStates nat) }
