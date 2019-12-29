@@ -11,17 +11,19 @@ import Data.Maybe
 import Data.Char
 import Data.Tuple.Extra
 import qualified Data.Map as M
-import Algorithm.Search (aStar)
+import Algorithm.Search (dijkstra, bfs)
 import Debug.Trace
 
 type Coordinate = (Int, Int)
 type VaultMap = M.Map Coordinate Item
+type DoorPaths = M.Map Char [Coordinate]
 
 data Explorer =
     Explorer {
         ePosition :: Coordinate
       , eMap :: VaultMap
       , eKeys :: [Char]
+      , ePaths :: DoorPaths
     } deriving(Show, Eq, Ord)
 
 data Item
@@ -30,30 +32,47 @@ data Item
     | Passage
     deriving(Show, Eq, Ord)
 
-stepcount :: Explorer -> Int
-stepcount = fst . fromJust . steps
-    where
-        steps = aStar neighbors cost remainingKeys keysCollected
-        keysCollected = not . any isKey . M.elems . eMap
-        remainingKeys = length . filter isKey . M.elems . eMap
-        isKey (Key _) = True
-        isKey _ = False
-        cost _ _ = 1
-        neighbors explorer = catMaybes $ map (neighbor explorer) [(0, 1), (0, -1), (1, 0), (-1, 0)]
+neighborKeyRange = 2
 
-neighbor :: Explorer -> Coordinate -> Maybe Explorer
-neighbor explorer pos = (M.lookup newPos $ eMap explorer) >>= updatedExplorer
+stepcount :: String -> Int
+stepcount = length . snd . fromJust . steps . parseMap
     where
-        newPos = both sum $ unzip [pos, (ePosition explorer)]
+        steps = dijkstra neighbors cost keysCollected
+        keysCollected = not . any isKey . M.elems . eMap
+        cost e1 e2 = (remainingCost e1) - (remainingCost e2)
+        neighbors explorer = catMaybes $ map (neighbor explorer (ePosition explorer)) [(0, 1), (0, -1), (1, 0), (-1, 0)]
+
+remainingCost :: Explorer -> Int
+remainingCost e = 1 -- add impl based on ePaths
+
+isKey :: Item -> Bool
+isKey (Key _) = True
+isKey _ = False
+
+neighbor :: Explorer -> Coordinate -> Coordinate -> Maybe Explorer
+neighbor explorer (x,y) (x',y') = (M.lookup newPos $ eMap explorer) >>= updatedExplorer
+    where
+        newPos = (x + x', y + y')
         unlockedDoor c = elem (toLower c) $ eKeys explorer
         updatedExplorer item = case item of
             Passage -> Just $ explorer { ePosition = newPos }
-            (Key c) -> Just $ Explorer newPos (M.insert newPos Passage (eMap explorer)) (c:(eKeys explorer))
+            (Key c) -> Just $ Explorer newPos (M.insert newPos Passage (eMap explorer)) (c:(eKeys explorer)) (ePaths explorer)
             (Door c) -> if unlockedDoor c then Just $ explorer { ePosition = newPos, eMap = M.insert newPos Passage (eMap explorer) } else Nothing
 
-parseMap :: String -> Explorer
-parseMap = fst . foldl' build (Explorer (0, 0) M.empty [], (0,0))
+doorPaths :: VaultMap -> DoorPaths
+doorPaths vmap = foldr addKey M.empty . M.toList $ M.filter isKey vmap
     where
+        addKey (pos, (Key c)) = M.insert c $ pos:(findPath pos (toUpper c))
+        findPath pos c = map fst . fromMaybe [] $ bfs nextTile (matchingDoor c) (pos, Passage)
+        matchingDoor c (_, Door c') = c == c'
+        matchingDoor _ _  = False
+        nextTile ((x, y), _) = catMaybes $ map checkTile [(x, y + 1), (x, y - 1), (x + 1, y), (x - 1, y)]
+        checkTile pos = M.lookup pos vmap >>= (Just . (,) pos)
+
+parseMap :: String -> Explorer
+parseMap = mapPaths . fst . foldl' build (Explorer (0, 0) M.empty [] M.empty, (0,0))
+    where
+        mapPaths explorer = explorer { ePaths = doorPaths (eMap explorer) }
         item c = if (isLower c) then Key c else Door c
         build (explorer, (y, x)) c = case c of
             '.' -> (explorer { eMap = M.insert (x, y) Passage (eMap explorer) }, (y, x + 1))
