@@ -65,3 +65,14 @@ tests:
     - tasty-hunit
     - tasty-quickcheck
     - QuickCheck
+
+
+benchmarks:
+  aoc2019-bench:
+    main:                Main.hs
+    source-dirs:         bench
+    ghc-options:
+    - -threaded
+    dependencies:
+    - aoc2019
+    - criterion
