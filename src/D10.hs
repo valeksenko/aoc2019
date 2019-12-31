@@ -7,6 +7,7 @@ module D10 (
 ) where
 
 import Data.List
+import Data.Function (on)
 
 type Coordinate = (Int, Int)
 
@@ -15,26 +16,20 @@ data SpaceObject
     | Asteroid
     deriving(Show, Eq)
 
-visibleAsteroids :: [Coordinate] -> Coordinate -> [Coordinate]
-visibleAsteroids asteroids c = filter (isVisible asteroids c) asteroids
+visibleAsteroids :: [Coordinate] -> Coordinate -> Int
+visibleAsteroids asteroids src@(x, y) = length . groupBy ((==) `on` angle) . sortOn angle $ delete src asteroids
+    where
+        angle (x',y') = atan2 (fromIntegral $ x' - x) (fromIntegral $ y' - y)
 
 allAsteroids :: [(SpaceObject, Coordinate)] -> [Coordinate]
 allAsteroids = map snd . filter ((==) Asteroid . fst)
-
-isVisible :: [Coordinate] -> Coordinate -> Coordinate -> Bool
-isVisible coords c1@(y1, x1) c2@(y2, x2) = if c1 == c2 then False else not (any blocking coords)
-    where
-        blocking c@(x, y) = (c /= c1) && (c /= c2) && ((angle c) == lineOfSight) -- && (between x x1 x2) && (between y y1 y2)
-        lineOfSight = angle c2
-        angle (y,x) = atan ((fromIntegral $ y1 - y) / (fromIntegral $ x1 - x))
-        between b a1 a2 = abs (a1 - a2) >= abs (a1 - b)
 
 parseSpaceMap :: String -> [(SpaceObject, Coordinate)]
 parseSpaceMap = fst . foldl' parse ([], (0, 0))
     where
         parse (space, (y, x)) c = case c of
-            '.' -> (space ++ [(Empty, (y, x))], (y, x + 1))
-            '#' -> (space ++ [(Asteroid, (y, x))], (y, x + 1))
+            '.' -> (space ++ [(Empty, (x, y))], (y, x + 1))
+            '#' -> (space ++ [(Asteroid, (x, y))], (y, x + 1))
             ' ' -> (space, (y, x))
             '\n' -> (space, (y + 1, 0))
 

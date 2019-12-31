@@ -19,6 +19,7 @@ import qualified D08P2Spec
 import qualified D09P1Spec
 import qualified D09P2Spec
 import qualified D10P1Spec
+import qualified D10P2Spec
 import qualified D11P1Spec
 import qualified D12P1Spec
 -- import qualified D14P1Spec
@@ -51,6 +52,8 @@ tests = testGroup "Tests"
       , D08P2Spec.tests
       , D09P1Spec.tests
       , D09P2Spec.tests
+      , D10P1Spec.tests
+      , D10P2Spec.tests
       -- TODO: fix
       -- , D01P2SpecP1Spec.tests
       , D11P1Spec.tests

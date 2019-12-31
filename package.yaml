@@ -50,6 +50,7 @@ executables:
     - vector
     - sbv
     - random
+    - gloss
 
 tests:
   aoc2019-test:

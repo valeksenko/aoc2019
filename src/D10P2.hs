@@ -1,24 +1,37 @@
 module D10P2 (
-    stationCoordinate
+    vaporized
 ) where
 
 import D10
 import Data.List
 import Data.Ord
+import Data.Function (on)
 
-
-vaporize :: Coordinate -> Coordinate -> [Coordinate] -> [Coordinate]
-vaporize station laser asteroids = blast . target laser $ visibleAsteroids asteroids station
+vaporized :: [(SpaceObject, Coordinate)] -> Int
+vaporized smap = res $ vaporize (stationCoordinate smap) (allAsteroids smap) !! 199
     where
-        blast asteroid = delete asteroid asteroids
-        target laser visible = head visible -- TODO: impl
+        res (x,y) = x * 100 + y
+
+vaporize :: Coordinate -> [Coordinate] -> [Coordinate]
+vaporize station@(x,y) = target [] . map (sortOn distance) . groupBy ((==) `on` angle) . sortOn angle . delete station
+    where
+        angle (x',y') = adjustAngle $ atan2 (fromIntegral $ x' - x) (fromIntegral $ y' - y)
+        adjustAngle c = if c < 0 then pi - c else c
+        distance (x',y') = sqrt $ (fromIntegral $ x' - x)^2 + (fromIntegral $ y' - y)^2
+
+target :: [Coordinate] -> [[Coordinate]] -> [Coordinate]
+target targeted aligned = if allTargeted then targeted else uncurry target chooseTargets
+    where
+        allTargeted = all null aligned
+        chooseTargets = foldl' choose (targeted, []) aligned
+        choose (t, a) asteroids = maybe (t, a) (addTarget t a) $ uncons asteroids
+        addTarget t a (x, xs) = (t ++ [x], a ++ [xs])
 
 stationCoordinate :: [(SpaceObject, Coordinate)] -> Coordinate
 stationCoordinate = fst . maximumBy (comparing snd) . asteroidCounts . allAsteroids
     where
         asteroidCounts asteroids = map (asteroidCount asteroids) asteroids
-        asteroidCount asteroids c = (c, length $ visibleAsteroids asteroids c)
-
+        asteroidCount asteroids c = (c, visibleAsteroids asteroids c)
 
 {-
 https://adventofcode.com/2019/day/10#part2

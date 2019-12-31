@@ -8,7 +8,7 @@ import Data.List
 maxasteroidcount :: [(SpaceObject, Coordinate)] -> Int
 maxasteroidcount = maximum . asteroidCounts . allAsteroids
     where
-        asteroidCounts asteroids = map (length . visibleAsteroids asteroids) asteroids
+        asteroidCounts asteroids = map (visibleAsteroids asteroids) asteroids
 
 {-
 https://adventofcode.com/2019/day/10
