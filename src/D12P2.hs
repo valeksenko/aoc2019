@@ -1,15 +1,54 @@
 module D12P2 (
     stepcount
+  , show3d
 ) where
 
 import D12
 import Data.List
+import Debug.Trace
+import Graphics.Gloss
+import Graphics.Gloss.Geometry.Angle
+import Graphics.Gloss.Interface.IO.Simulate
+
+show3d :: [Coordinate] -> IO ()
+show3d c = simulateIO window black 1 (mkSimullation c) viewSimullation stepSimullation
+
+window :: Display
+window = InWindow "Moon movements" (1400, 1400) (0, 0)
+
+project :: Coordinate -> Point
+project (x0, y0, z0) = (projectedX, projectedY)
+    where (lookAtX, lookAtY, lookAtZ) = (0.0, 0.0, 0.0)
+          (x, y, z) = ((fromIntegral x0) - lookAtX, (fromIntegral y0) - lookAtY, (fromIntegral z0) - lookAtZ)
+          (alpha, beta, gamma) = (degToRad 0.0, degToRad 0.0, degToRad 0.0)
+          (eyeX, eyeY, eyeZ) = (0.0, 0.0, 300.0)
+          (cosAlpha, sinAlpha) = (cos alpha, sin alpha)
+          (cosBeta, sinBeta) = (cos beta, sin beta)
+          (cosGamma, sinGamma) = (cos gamma, sin gamma)
+          (dx, dy, dz) = (cosBeta*(sinGamma*y + cosGamma*x) - sinBeta*z,
+                          sinAlpha*(cosBeta*z + sinBeta*(sinGamma*y + cosGamma*x)) +
+                          cosAlpha*(cosGamma*y - sinGamma*x),
+                          cosAlpha*(cosBeta*z + sinBeta*(sinGamma*y + cosGamma*x)) -
+                          sinAlpha*(cosGamma*y - sinGamma*x)) 
+          projectedX = eyeZ/dz*dx - eyeX
+          projectedY = eyeZ/dz*dy - eyeY
+
+
+viewSimullation :: [Body] -> IO Picture
+viewSimullation moons = return $ pictures [Color blue $ showMoon newPos]
+    where
+        showMoon p@(x,y) = translate x y $ thickCircle 0 20
+        newPos = project . snd $ head moons
+
+stepSimullation :: ViewPort -> Float -> [Body] -> IO [Body]
+stepSimullation _ _ moons = return $ runSimullation moons
+
 
 stepcount :: [Coordinate] -> Int
-stepcount = fst . run . mkSimullation
+stepcount = const 1
     where
         run sim = until ((==) sim . snd) runStep (1, runSimullation sim)
-        runStep (c, sim) = (c + 1, runSimullation sim)
+        runStep (c, sim) = (traceShow . snd $ head sim) $ (c + 1, runSimullation sim)
 
 {-
 https://adventofcode.com/2019/day/12#part2
