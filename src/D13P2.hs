@@ -1,12 +1,15 @@
 module D13P2 (
     gamescore
+  , showGame
 ) where
 
 import IntcodeV3
 import Data.List
 import Data.Maybe
 import qualified Data.Map as M
-import Debug.Trace
+import Graphics.Gloss
+import Graphics.Gloss.Geometry.Angle
+import Graphics.Gloss.Data.ViewPort
 
 type Coordinate = (Int, Int)
 type GameMap = M.Map Coordinate BlockTile
@@ -27,27 +30,59 @@ data Game =
       , gMap :: GameMap
     } deriving(Show, Eq)
 
+
+thickness = 20.0
+
+window :: Display
+window = InWindow "Moon movements" (1300, 600) (0, 0)
+
 gamescore :: [Register] -> Maybe BlockTile
-gamescore = M.lookup (-1,0) . gMap . until gameOver (play . showGame) . mkGame . runProgram . mkIntcode 'G' []
+gamescore = M.lookup (-1,0) . gMap . until gameOver playGame . mkGame
     where
         gameOver = M.null . M.filter ((==) Block) . gMap
-        play game = updateGame (makeMove game) game
-        mkGame state = initBalls . updateGame state $ Game state [] (0,0) (mapOutput M.empty state)
+
+showGame :: [Register] -> IO ()
+showGame code = simulate window black 1 (mkGame code) gameState stepGame
+
+gameState :: Game -> Picture
+gameState = pictures . map pixel . M.toList . gMap
+    where
+        asPoint (x,y) = ((fromIntegral x) * thickness, - (fromIntegral y) * thickness)
+        move = uncurry translate . asPoint
+        pixel (c, e) = case e of
+                Wall -> Color green $ move c $ rectangleSolid thickness thickness
+                Block -> Color orange $ move c $ rectangleWire thickness thickness
+                Paddle -> Color yellow $ move c $ rectangleUpperSolid thickness thickness
+                Ball -> Color white $ move c $ circleSolid thickness
+                Score n -> translate 100 20 $ scale 0.2 0.2 $ color white $ text $ "Score: " ++ show n
+
+stepGame :: ViewPort -> Float -> Game -> Game
+stepGame _ _ = playGame
+
+playGame :: Game -> Game
+playGame game = updateGame (makeMove game) game
+
+mkGame :: [Register] -> Game
+mkGame = newGame . runProgram . mkIntcode 'G' [] . (2:) . tail
+    where
+        newGame state = initBalls . updateGame state $ Game state [] (0,0) (mapOutput M.empty state)
         initBalls game = game { gBalls = (gBalls game) ++ (gBalls game) }
-        updateGame state = updatePositions . updateState state
-        updateState state game = game { gState = state, gMap = mapOutput (gMap game) state }
+
+updateGame :: State -> Game -> Game
+updateGame state = updatePositions . updateState
+    where
+        updateState game = game { gState = state, gMap = mapOutput (gMap game) state }
         updatePositions game = game { gBalls = (findTile Ball $ gMap game):(gBalls game), gPaddle = (findTile Paddle $ gMap game) }
 
 makeMove :: Game -> State
 makeMove game = runProgram $ (gState game) { sInput = [nextMove $ gBalls game], sOutput = [] }
     where
-        nextMove (b1:b2:_) = traceShow (b1,b2) . newDirection (traceShowId . findTile Paddle $ gMap game) b1 $ nextPosition b1 b2
-        nextPosition (x,y) (x',_) = case (nextTile y $ x + x - x') of
-            Nothing -> x + x - x'
+        nextMove (b1:b2:_) = newDirection (findTile Paddle $ gMap game) b1 $ nextPosition b1 b2
+        nextPosition (x,y) (x',y') = case (nextTile (x + x - x') y) of
             Just Paddle -> x
-            otherwise -> x' + x' - x
-        nextTile y x = M.lookup (x, y) (gMap game)
-        newDirection (px,py) b nextb = traceShowId $ if (px,py-1) == b then 0 else case (compare px nextb) of
+            otherwise -> x + x - x'
+        nextTile x y = M.lookup (x, y) (gMap game)
+        newDirection (px,py) b nextb = if (px,py-1) == b then 0 else case (compare px nextb) of
                 EQ -> 0
                 LT -> 1
                 GT -> -1
@@ -67,18 +102,6 @@ mapOutput gmap = foldl' mapOps gmap . (toOps []) . sOutput
             3 -> M.insert (x,y) Paddle omap
             4 -> M.insert (x,y) Ball omap
             otherwise -> M.insert (x,y) (Score tid) omap
-
-showGame :: Game -> Game
-showGame game = (traceShow "**********") $ (traceShow $ showG (gMap game)) game
-    where
-        showG gmap = (traceShow $ M.lookup (-1,0) gmap) . length . filter ((==) "**") $ map (addLine gmap) [0..20]
-        addLine gmap y = traceShowId $ map (addPixel gmap y) [0..37]
-        addPixel gmap y x = case M.lookup (x,y) gmap of
-                Nothing -> ' '
-                (Just Wall) -> '#'
-                (Just Block) -> '-'
-                (Just Paddle) -> '_'
-                (Just Ball) -> 'o'
 
 {-
 https://adventofcode.com/2019/day/13#part2
