@@ -24,3 +24,6 @@ Run [criterion](http://www.serpentine.com/criterion/) benchmarks:
 ```sh
 stack bench
 ```
+
+<!--- advent_readme_stars table --->
+
